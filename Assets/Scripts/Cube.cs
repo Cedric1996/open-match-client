@@ -3,45 +3,32 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using Grpc.Core;
-using Helloworld;
-using System;
-using Program;
+using UnityEngine.Ucg.Matchmaking;
 
 public class Cube : MonoBehaviour
 {
     Channel channel;
+    private string endpoint;
+    private Matchmaker matchmaker;
     // Start is called before the first frame update
     void Start()
     {
         Button btn = this.GetComponent<Button> ();
         btn.onClick.AddListener (OnClick);
+        endpoint = "172.17.129.6:30593";
         Debug.Log("Start Running.");
+        matchmaker = new Matchmaker(endpoint);
         // OpenMatchClient.exec();
     }
 
     private async void OnClick()
     {
-        Debug.Log("This is a successful sending.");
-        OpenMatchClient.exec();
-        // HelloWorld();
-        Debug.Log("End Sending.");
+        matchmaker.RequestMatch("123");
     }
 
     private void HelloWorld()
     {
-        try
-        {
-            string ip = "localhost:50051";
-            channel = new Channel(ip, ChannelCredentials.Insecure);
-            var client = new Greeter.GreeterClient(channel);
-
-            HelloReply reply = client.SayHello(new HelloRequest { Name = "user" });
-            Debug.Log(reply.Message);
-        }
-        catch (Exception e)
-        {
-           Debug.Log(e.Message);
-        }
+        
     }
     // Update is called once per frame
     void Update()

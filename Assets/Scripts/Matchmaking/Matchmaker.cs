@@ -1,6 +1,7 @@
 using System;
-using System.Net;
 using System.Text;
+using System.Threading.Tasks;
+using Grpc.Core;
 using OpenMatch;
 
 namespace UnityEngine.Ucg.Matchmaking
@@ -10,12 +11,14 @@ namespace UnityEngine.Ucg.Matchmaking
         /// <summary>
         /// The hostname[:port]/{projectid} of your matchmaking server
         /// </summary>
-        public string Endpoint;
-
-        MatchmakingController matchmakingController;
+        public string endpoint;
+        readonly Frontend.FrontendClient m_client;
+        private Channel channel;
+        // MatchmakingController matchmakingController;
         private MatchmakingRequest request;
+        private Assignment assignment;
         private Ticket ticket;
-
+        // private OpenMatchClient m_client;
         public delegate void SuccessCallback(Assignment assignment);
         public delegate void ErrorCallback(string error);
 
@@ -44,10 +47,41 @@ namespace UnityEngine.Ucg.Matchmaking
         /// <param name="onErrorCallback">If matchmaking fails, this callback will provided some failure information</param>
         public Matchmaker(string endpoint, SuccessCallback onSuccessCallback = null, ErrorCallback onErrorCallback = null)
         {
-            Endpoint = endpoint;
+            this.endpoint = endpoint;
+            channel = new Channel(endpoint, ChannelCredentials.Insecure);
+            m_client = new Frontend.FrontendClient(channel);
             this.successCallback = onSuccessCallback;
             this.errorCallback = onErrorCallback;
+            ticket = TicketUtil.GenerateTicket(RandomString(6, true));
         }
+
+        private void CreateTicket()
+        {
+            CreateTicketRequest request = new CreateTicketRequest();
+            request.Ticket = ticket;
+            State = MatchmakingState.Requesting;
+            CreateTicketResponse ticketResponse = m_client.CreateTicket(request);
+            ticket = ticketResponse.Ticket;
+            if( ticket == null )
+                return;             
+        }
+
+        private async Task GetAssignment(String Id)
+        {
+            GetAssignmentsRequest request = new GetAssignmentsRequest{
+                TicketId = Id
+            };
+            try {
+                State = MatchmakingState.Searching;
+                var responseStream = m_client.GetAssignments(request).ResponseStream; 
+                await responseStream.MoveNext();
+                assignment = responseStream.Current.Assignment;
+                Debug.Log(assignment);
+                State = MatchmakingState.Found;
+            } catch (RpcException e) {
+                throw e;
+            }
+        } 
 
         /// <summary>
         /// Start Matchmaking
@@ -55,18 +89,22 @@ namespace UnityEngine.Ucg.Matchmaking
         /// <param name="playerId">The id of the player</param>
         /// <param name="playerProps">Custom player properties relevant to the matchmaking function</param>
         /// <param name="groupProps">Custom group properties relevant to the matchmaking function</param>
-        public void RequestMatch(string playerId, MatchmakingPlayerProperties playerProps, MatchmakingGroupProperties groupProps)
+        // public async void RequestMatch(string playerId, MatchmakingPlayerProperties playerProps, MatchmakingGroupProperties groupProps)
+        // {
+        //     CreateTicketRequest();
+        //     await GetAssignment(ticket.Id);
+        //     //client.GetUpdates(m_ticket).Wait();
+
+        //     await channel.ShutdownAsync();
+        // }
+        public async void RequestMatch(string playerId)
         {
-            ticket = TicketUtil.GenerateTicket(RandomString(6, true));
-            //request = CreateMatchmakingRequest(playerId, playerProps, groupProps);
-
-            matchmakingController = new MatchmakingController(Endpoint);
-
-            matchmakingController.StartRequestMatch(ticket, GetAssignment, OnError);
-            State = MatchmakingState.Requesting;
+            CreateTicket();
+            await GetAssignment(ticket.Id);
+            await channel.ShutdownAsync();
             Debug.Log(State);
         }
-
+        
         public static string RandomString(int size, bool lowerCase)
         {
             StringBuilder builder = new StringBuilder();
@@ -86,75 +124,23 @@ namespace UnityEngine.Ucg.Matchmaking
         /// Matchmaking state-machine driver
         /// </summary>
         /// <exception cref="ArgumentOutOfRangeException"></exception>
-        public void Update()
-        {
-            switch (State)
-            {
-                case MatchmakingState.Requesting:
-                    matchmakingController.UpdateRequestMatch();
-                    break;
-                case MatchmakingState.Searching:
-                    matchmakingController.UpdateGetAssignment();
-                    break;
-                case MatchmakingState.Found:
-                case MatchmakingState.None:
-                case MatchmakingState.Error:
-                    break; // User hasn't stopped the state machine yet.
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-        }
-
-        /// <summary>
-        /// Generates a matchmaking request from the custom player and group properties provided.
-        /// </summary>
-        /// <param name="playerId">The id of the player</param>
-        /// <param name="playerProps">Custom player properties relevant to the matchmaking function</param>
-        /// <param name="groupProps">Custom group properties relevant to the matchmaking function</param>
-        /// <returns></returns>
-        private static MatchmakingRequest CreateMatchmakingRequest(string playerId, MatchmakingPlayerProperties playerProps, MatchmakingGroupProperties groupProps)
-        {
-            // TODO: WORKAROUND: Currently matchmaker handles IDs as UUIDs, not player names, and will only ever generate 1 match assignment for each UUID
-            //   Therefore, we'll append the current time in Ticks as an attempt at creating a UUID
-            playerId = playerId + DateTime.UtcNow.Ticks.ToString();
-
-            MatchmakingPlayer thisPlayer = new MatchmakingPlayer(playerId)
-            {
-                Properties = JsonUtility.ToJson(playerProps)
-            };
-
-            MatchmakingRequest request = new MatchmakingRequest()
-            {
-                Properties = JsonUtility.ToJson(groupProps)
-            };
-
-
-            request.Players.Add(thisPlayer);
-
-            return request;
-        }
-
-
-
-        void GetAssignment()
-        {
-            matchmakingController.StartGetAssignment(ticket, OnSuccess, OnError);
-            State = MatchmakingState.Searching;
-            Debug.Log(State);
-        }
-
-        void OnSuccess(Assignment assignment)
-        {
-            State = MatchmakingState.Found;
-            Debug.Log(State);
-            successCallback?.Invoke(assignment);
-        }
-
-        void OnError(string error)
-        {
-            State = MatchmakingState.Error;
-            Debug.Log(State);
-            errorCallback?.Invoke(error ?? "Undefined Error");
-        }
+        // public void Update()
+        // {
+        //     switch (State)
+        //     {
+        //         case MatchmakingState.Requesting:
+        //             matchmakingController.UpdateRequestMatch();
+        //             break;
+        //         case MatchmakingState.Searching:
+        //             matchmakingController.UpdateGetAssignment();
+        //             break;
+        //         case MatchmakingState.Found:
+        //         case MatchmakingState.None:
+        //         case MatchmakingState.Error:
+        //             break; // User hasn't stopped the state machine yet.
+        //         default:
+        //             throw new ArgumentOutOfRangeException();
+        //     }
+        // }
     }
 }

@@ -84,7 +84,7 @@ namespace UnityEngine.Ucg.Matchmaking
     }
 
     [Serializable]
-    public class Assignment
+    public class TicketAssignment
     {
 #pragma warning disable 649
         [SerializeField]

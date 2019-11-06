@@ -63,10 +63,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Assets\Scripts\Cube.cs" />
-    <Compile Include="Assets\Scripts\MatchMaking.cs" />
     <Compile Include="Assets\Scripts\Matchmaking\Matchmaker.cs" />
     <Compile Include="Assets\Scripts\Matchmaking\MatchmakingClient.cs" />
-    <Compile Include="Assets\Scripts\Matchmaking\MatchmakingController.cs" />
     <Compile Include="Assets\Scripts\Matchmaking\MatchmakingCustomProperties.cs" />
     <Compile Include="Assets\Scripts\Matchmaking\MatchmakingModel.cs" />
     <Compile Include="Assets\Scripts\Matchmaking\OpenMatch\Annotations.cs" />
@@ -85,9 +83,7 @@
     <Compile Include="Assets\Scripts\Matchmaking\OpenMatch\MessagesGrpc.cs" />
     <Compile Include="Assets\Scripts\Matchmaking\OpenMatch\Mmlogic.cs" />
     <Compile Include="Assets\Scripts\Matchmaking\OpenMatch\MmlogicGrpc.cs" />
-    <Compile Include="Assets\Scripts\Matchmaking\OpenMatch\OpenMatchClient.cs" />
-    <Compile Include="Assets\Scripts\Matchmaking\OpenMatch\TicketUtil.cs" />
-    <Compile Include="Assets\Scripts\Program.cs" />
+    <Compile Include="Assets\Scripts\Matchmaking\TicketUtil.cs" />
     <Reference Include="Unity.Timeline.Editor">
       <HintPath>C:/Users/yy/Unity/open-match-client/Library/ScriptAssemblies/Unity.Timeline.Editor.dll</HintPath>
     </Reference>
